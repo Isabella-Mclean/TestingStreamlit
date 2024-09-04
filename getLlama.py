@@ -1,22 +1,27 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+import bitsandbytes as bnb
+
 
 # Load the model and tokenizer from Hugging Face
 model_name = "amaricem/Meta-Llama-3.1-8B-pgt-v1"
 
 max_seq_length = 512 
 dtype = torch.float32 # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
-load_in_4bit = True # Use 4bit quantization to reduce memory usage. Can be False.
 
 # Load the tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-# Load the model, apply quantization if needed
-if load_in_4bit:
-    from bitsandbytes import AutoModelForCausalLM as QuantizedModelForCausalLM
-    model = QuantizedModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=dtype)
-else:
-    model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=dtype)
+# Load the model with 4-bit quantization
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    device_map="auto",  # Automatically map the model to available devices
+    torch_dtype=dtype,  # Set the dtype for the model
+    load_in_4bit=True,  # Load the model with 4-bit quantization
+    quantization_config=bnb.QuantizationConfig(
+        load_in_4bit=True,  # Enable 4-bit quantization
+    )
+)
 
 # Define the prompt
 polygt_prompt = """Unten finden Sie eine Frage. Reagieren Sie mit nur einer zutreffenden Antwort.
