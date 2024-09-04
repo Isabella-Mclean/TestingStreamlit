@@ -1,26 +1,23 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import bitsandbytes as bnb
-
 
 # Load the model and tokenizer from Hugging Face
 model_name = "amaricem/Meta-Llama-3.1-8B-pgt-v1"
 
-max_seq_length = 512 
-dtype = torch.float32 # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
+# Adjust these settings based on your hardware and preferences
+max_seq_length = 512
+dtype = torch.float16  # Use torch.float16 for T4/V100, bfloat16 for Ampere+ if supported
 
 # Load the tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-# Load the model with 4-bit quantization
+# Load the model with 4-bit quantization using bitsandbytes
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map="auto",  # Automatically map the model to available devices
     torch_dtype=dtype,  # Set the dtype for the model
-    load_in_4bit=True,  # Load the model with 4-bit quantization
-    quantization_config=bnb.QuantizationConfig(
-        load_in_4bit=True,  # Enable 4-bit quantization
-    )
+    load_in_4bit=True  # Load the model with 4-bit quantization
 )
 
 # Define the prompt
@@ -34,8 +31,6 @@ polygt_prompt = """Unten finden Sie eine Frage. Reagieren Sie mit nur einer zutr
 
 ###Response:
 {response}"""
-
-
 
 # Prepare the input text
 input_text = polygt_prompt.format(
