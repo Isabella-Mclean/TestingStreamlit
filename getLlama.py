@@ -17,7 +17,7 @@ model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map="auto",  # Automatically map the model to available devices
     torch_dtype=dtype,  # Set the dtype for the model
-    load_in_4bit=True  # Load the model with 4-bit quantization
+    load_in_4bit=False  # Load the model with 4-bit quantization
 )
 
 # Define the prompt
@@ -43,7 +43,7 @@ input_text = polygt_prompt.format(
 inputs = tokenizer(input_text, return_tensors="pt", max_length=max_seq_length, truncation=True)
 
 # Move inputs to the appropriate device
-inputs = {key: value.to(model.device) for key, value in inputs.items()}
+inputs = {key: value.to("cpu") for key, value in inputs.items()}
 
 # Generate the output
 with torch.no_grad():
