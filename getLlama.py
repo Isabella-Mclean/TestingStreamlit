@@ -1,22 +1,22 @@
-from unsloth import FastLanguageModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-max_seq_length = 2048 # Choose any! We auto support RoPE Scaling internally!
-dtype = None # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
+
+# Load the model and tokenizer from Hugging Face
+model_name = "amaricem/Meta-Llama-3.1-8B-pgt-v1"
+
+max_seq_length = 512 
+dtype = torch.float32 # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
 load_in_4bit = True # Use 4bit quantization to reduce memory usage. Can be False.
 
-# Set your configurations
-max_seq_length = 512  # You can adjust this based on your memory
-dtype = torch.float32  # Set dtype based on your GPU; use 'float16' for T4, V100, or 'bfloat16' for Ampere+
-load_in_4bit = True  # Use 4bit quantization to reduce memory usage, or set to False
+# Load the tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-# Load the model and tokenizer
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name="amaricem/Meta-Llama-3.1-8B-pgt-v1",
-    max_seq_length=max_seq_length,
-    dtype=dtype,
-    load_in_4bit=load_in_4bit,
-    token="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",  # Token required for gated models
-)
+# Load the model, apply quantization if needed
+if load_in_4bit:
+    from bitsandbytes import AutoModelForCausalLM as QuantizedModelForCausalLM
+    model = QuantizedModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=dtype)
+else:
+    model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=dtype)
 
 # Define the prompt
 polygt_prompt = """Unten finden Sie eine Frage. Reagieren Sie mit nur einer zutreffenden Antwort.
@@ -30,31 +30,31 @@ polygt_prompt = """Unten finden Sie eine Frage. Reagieren Sie mit nur einer zutr
 ###Response:
 {response}"""
 
-# Get the EOS token from the tokenizer
-EOS_TOKEN = tokenizer.eos_token
 
-# Enable faster inference with FastLanguageModel (no CUDA dependency)
-FastLanguageModel.for_inference(model)
 
-# Prepare inputs for the model
-inputs = tokenizer(
-    [
-        polygt_prompt.format(
-            instruction="Wann gehst du ins kaufhaus?",  # instruction
-            input="",  # input
-            response=""  # output - leave this blank for generation!
-        )
-    ],
-    return_tensors="pt"
-).to("cpu")  
-
-# Generate the output
-outputs = model.generate(
-    **inputs,
-    max_new_tokens=64,
-    use_cache=True,
+# Prepare the input text
+input_text = polygt_prompt.format(
+    instruction="Wann gehst du ins Kaufhaus?",  # instruction
+    input="",  # input
+    response=""  # output - leave this blank for generation!
 )
 
+# Tokenize the input
+inputs = tokenizer(input_text, return_tensors="pt", max_length=max_seq_length, truncation=True)
+
+# Move inputs to the appropriate device
+inputs = {key: value.to(model.device) for key, value in inputs.items()}
+
+# Generate the output
+with torch.no_grad():
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=64,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
+        use_cache=True
+    )
+
 # Decode and print the output
-decoded_output = tokenizer.batch_decode(outputs)
+decoded_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
 print(decoded_output)
