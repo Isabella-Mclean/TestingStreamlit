@@ -1,18 +1,13 @@
+from unsloth import FastLanguageModel
 import torch
-
-try:
-    from unsloth import FastLanguageModel
-    print("Unsloth loaded successfully")
-except AssertionError as e:
-    if "CUDA" in str(e):
-        print("CUDA is not available, switching to CPU-only mode.")
-    else:
-        raise e
+max_seq_length = 2048 # Choose any! We auto support RoPE Scaling internally!
+dtype = None # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
+load_in_4bit = True # Use 4bit quantization to reduce memory usage. Can be False.
 
 # Set your configurations
 max_seq_length = 512  # You can adjust this based on your memory
 dtype = torch.float32  # Set dtype based on your GPU; use 'float16' for T4, V100, or 'bfloat16' for Ampere+
-load_in_4bit = False  # Use 4bit quantization to reduce memory usage, or set to False
+load_in_4bit = True  # Use 4bit quantization to reduce memory usage, or set to False
 
 # Load the model and tokenizer
 model, tokenizer = FastLanguageModel.from_pretrained(
